@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClippyNet - File Base64 Encoding</title>
+    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <style>
+        :root {
+            --text-color: #333;
+            --background-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --accent-color: #3b82f6;
+            --border-color: #e5e7eb;
+            --btn-hover: #2563eb;
+            --copy-btn: #22c55e;
+            --copy-hover: #16a34a;
+            --cmd-bg: #f1f5f9;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 768px;
+            margin: 30px auto;
+            padding: 0 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        
+        h1, h2, h3 {
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 28px;
+            margin: 0 0 24px 0;
+        }
+        
+        .container {
+            background-color: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn:hover {
+            background-color: var(--btn-hover);
+        }
+        
+        #fileInput {
+            margin: 12px 0;
+            max-width: 300px;
+            padding: 8px 0;
+        }
+        
+        #fileInput::file-selector-button {
+            font-size: 14px;
+            padding: 8px 12px;
+            margin-right: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        #fileInput::file-selector-button:hover {
+            background-color: #f3f4f6;
+        }
+        
+        #resultContainer {
+            display: none;
+        }
+        
+        .command-container {
+            display: flex;
+            margin: 16px 0;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        .command {
+            flex-grow: 1;
+            padding: 12px;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            background: var(--cmd-bg);
+            color: var(--text-color);
+            overflow-x: auto;
+            white-space: nowrap;
+            font-size: 14px;
+        }
+        
+        .copy-btn {
+            background-color: var(--copy-btn);
+            border: none;
+            color: white;
+            padding: 0 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            min-width: 70px;
+        }
+        
+        .copy-btn:hover {
+            background-color: var(--copy-hover);
+        }
+        
+        .error {
+            color: #ef4444;
+            margin: 16px 0;
+            padding: 12px;
+            display: none;
+            border-radius: 6px;
+            background-color: #fee2e2;
+            font-weight: 500;
+        }
+        
+        ul, ol {
+            margin-left: 20px;
+            padding-left: 0;
+        }
+        
+        li {
+            margin-bottom: 8px;
+        }
+        
+        h2 {
+            font-size: 22px;
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        
+        h3 {
+            font-size: 18px;
+            margin-top: 24px;
+            margin-bottom: 12px;
+            color: #4b5563;
+        }
+        
+        p {
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        
+        .file-info {
+            margin-bottom: 20px;
+            padding: 12px;
+            background-color: #f9fafb;
+            border-radius: 6px;
+            border-left: 3px solid var(--accent-color);
+        }
+    </style>
+</head>
+<body>    
+    <h1>ClippyNet 📎</h1>
+    <div class="container" style="text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; flex-wrap: wrap;">
+            <div style="display: inline-flex; align-items: center;">
+                <label for="fileInput" style="margin-right: 10px; white-space: nowrap;">File to Transfer:</label>
+                <input type="file" id="fileInput" style="width: auto; max-width: 300px;">
+            </div>
+        </div>
+        <div style="text-align: center; margin-top: 12px;">
+            <button id="encodeBtn" class="btn">Generate Command</button>
+        </div>
+    </div>
+    
+    <div id="errorMessage" class="error"></div>
+    
+    <div id="resultContainer" class="container">
+        <div class="file-info">
+            <strong>Filename:</strong> <span id="filename"></span><br>
+            <strong>Size:</strong> <span id="filesize"></span> KB
+        </div>
+        
+        <h3>Linux/macOS Commands:</h3>
+        
+        <div style="margin-bottom: 8px;">
+            <strong>Standard Command:</strong>
+        </div>
+        <div class="command-container">
+            <div class="command" id="linuxStandardCommand"></div>
+            <button class="copy-btn" onclick="copyCommand('linuxStandardCommand', this)">Copy</button>
+        </div>
+        <div id="standardSize" style="margin: 5px 0 15px; font-size: 13px; color: #666;"></div>
+        
+        <div style="margin-bottom: 8px;">
+            <strong>Compressed Command (gzip):</strong>
+        </div>
+        <div class="command-container">
+            <div class="command" id="linuxCompressedCommand"></div>
+            <button class="copy-btn" onclick="copyCommand('linuxCompressedCommand', this)">Copy</button>
+        </div>
+        <div id="compressedSize" style="margin: 5px 0 20px; font-size: 13px; color: #666;"></div>
+        
+        <h3>Windows PowerShell Command:</h3>
+        <div class="command-container">
+            <div class="command" id="powershellCommand"></div>
+            <button class="copy-btn" onclick="copyCommand('powershellCommand', this)">Copy</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>About ClippyNet</h2>
+        <p>Generate commands to transfer files between computers using base64 encoding.</p>
+        
+        <h3>Features:</h3>
+        <ul>
+            <li>Easy file transfer via generated one liner terminal command</li>
+            <li>Files not uploaded anywhere to generate commands</li>
+            <li>Works with any file type I think</li>
+            <li>No internet required, save this page to your computer, it should still work</li>
+        </ul>
+        
+        <h3>Instructions:</h3>
+        <ol>
+            <li>Select a file</li>
+            <li>Click "Generate Command"</li>
+            <li>Copy the command for your OS</li>
+            <li>Paste into terminal to restore the file</li>
+        </ol>
+        
+        <h3>Notes:</h3>
+        <ul>
+            <li>Base64 encoding increases file size by ~33%</li>
+            <li>Large files may cause performance issues</li>
+            <li>Command-line knowledge required for restoration</li>
+        </ul>
+    </div>
+    
+    <script>
+        document.getElementById('encodeBtn').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showError('No file selected');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(event) {
+                try {
+                    // Get file content as ArrayBuffer
+                    const arrayBuffer = event.target.result;
+                    const fileName = file.name;
+                    
+                    // Get standard base64 encoding (no compression)
+                    const standardBase64 = arrayBufferToBase64(arrayBuffer);
+                    const standardLinuxCommand = `echo '${standardBase64}' | base64 -d > "${fileName}"`;
+                    const powershellCommand = `[System.Convert]::FromBase64String('${standardBase64}') | Set-Content -Path "${fileName}" -Encoding Byte`;
+                    
+                    // Prepare compressed version for Linux
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    const compressed = pako.gzip(uint8Array);
+                    const compressedBase64 = arrayBufferToBase64(compressed.buffer);
+                    const compressedLinuxCommand = `echo '${compressedBase64}' | base64 -d | gzip -d > "${fileName}"`;
+                    
+                    // Calculate sizes and comparison
+                    const standardSize = standardBase64.length;
+                    const compressedSize = compressedBase64.length;
+                    const percentDiff = ((standardSize - compressedSize) / standardSize * 100).toFixed(1);
+                    
+                    // Display file info
+                    document.getElementById('filename').textContent = fileName;
+                    document.getElementById('filesize').textContent = (file.size / 1024).toFixed(2);
+                    
+                    // Set commands
+                    document.getElementById('linuxStandardCommand').textContent = standardLinuxCommand;
+                    document.getElementById('linuxCompressedCommand').textContent = compressedLinuxCommand;
+                    document.getElementById('powershellCommand').textContent = powershellCommand;
+                    
+                    // Display size info
+                    document.getElementById('standardSize').textContent = 
+                        `Command size: ${formatSize(standardSize)}`;
+                    
+                    const sizeComparisonText = percentDiff > 0 
+                        ? `Command size: ${formatSize(compressedSize)} (${percentDiff}% smaller than standard)` 
+                        : `Command size: ${formatSize(compressedSize)} (${-percentDiff}% larger than standard)`;
+                    
+                    document.getElementById('compressedSize').textContent = sizeComparisonText;
+                    
+                    // Highlight the better option
+                    if (percentDiff > 0) {
+                        document.getElementById('compressedSize').style.color = '#16a34a';
+                        document.getElementById('standardSize').style.color = '#666';
+                    } else {
+                        document.getElementById('compressedSize').style.color = '#666';
+                        document.getElementById('standardSize').style.color = '#16a34a';
+                    }
+                    
+                    // Show the result container
+                    document.getElementById('resultContainer').style.display = 'block';
+                    
+                    // Hide any previous error
+                    document.getElementById('errorMessage').style.display = 'none';
+                } catch (error) {
+                    showError('Error processing file: ' + error.message);
+                }
+            };
+            
+            reader.onerror = function() {
+                showError('Error reading file');
+            };
+            
+            // Read file as ArrayBuffer
+            reader.readAsArrayBuffer(file);
+        });
+        
+        // Format size in bytes or KB
+        function formatSize(bytes) {
+            if (bytes < 1024) {
+                return bytes + ' bytes';
+            } else {
+                return (bytes / 1024).toFixed(1) + ' KB';
+            }
+        }
+        
+        // Helper function to convert ArrayBuffer to base64
+        function arrayBufferToBase64(buffer) {
+            let binary = '';
+            const bytes = new Uint8Array(buffer);
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return window.btoa(binary);
+        }
+        
+        function copyCommand(elementId, buttonElement) {
+            const commandText = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(commandText)
+                .then(() => {
+                    const originalText = buttonElement.textContent;
+                    buttonElement.textContent = 'Copied!';
+                    setTimeout(() => {
+                        buttonElement.textContent = originalText;
+                    }, 2000);
+                })
+                .catch(err => {
+                    console.error('Could not copy text: ', err);
+                    alert('Failed to copy command. Please try manually selecting and copying the text.');
+                });
+        }
+        
+        function showError(message) {
+            const errorElement = document.getElementById('errorMessage');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+            document.getElementById('resultContainer').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
