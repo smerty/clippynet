@@ -2,6 +2,8 @@
 
 A simple, client-side tool for transferring files between computers via base64-encoded terminal commands.
 
+**Use it here: [https://smerty.github.io/clippynet/](https://smerty.github.io/clippynet/)**
+
 ## Features
 
 - **Simple File Transfer**: Generate one-liner terminal commands to transfer files between computers
