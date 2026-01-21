@@ -24,9 +24,6 @@ For more information, please refer to <https://unlicense.org>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ClippyNet // Terminal File Transfer</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
             /* Palette: Slate */
@@ -74,7 +71,7 @@ For more information, please refer to <https://unlicense.org>
         * { box-sizing: border-box; }
 
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: system-ui, -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
             background-color: var(--bg-body);
             color: var(--text-main);
             margin: 0;
@@ -210,7 +207,7 @@ For more information, please refer to <https://unlicense.org>
 
         .filesize {
             color: var(--text-muted);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
             font-size: 12px;
         }
 
@@ -270,14 +267,14 @@ For more information, please refer to <https://unlicense.org>
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #334155;
+            border-bottom: 1px solid var(--border-subtle);
             min-height: 42px;
         }
 
         .terminal-title {
             color: #94a3b8;
             font-size: 12px;
-            font-family: 'Inter', sans-serif;
+            font-family: system-ui, -apple-system, sans-serif;
             font-weight: 500;
             display: flex;
             align-items: center;
@@ -333,7 +330,7 @@ For more information, please refer to <https://unlicense.org>
             padding: 16px;
             margin: 0;
             color: var(--text-terminal);
-            font-family: 'JetBrains Mono', monospace;
+            font-family: 'Courier New', Consolas, Monaco, monospace;
             font-size: 13px;
             white-space: pre-wrap;
             word-break: break-all;
@@ -441,7 +438,7 @@ For more information, please refer to <https://unlicense.org>
         <!-- Input Panel -->
         <div class="panel">
             <div class="upload-area">
-                <div id="dropZone" class="drop-zone" role="button" tabindex="0">
+                <div id="dropZone" class="drop-zone" role="button" tabindex="0" onkeydown="if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') { event.preventDefault(); document.getElementById('fileInput').click(); }">
                     <div class="drop-icon">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -584,16 +581,36 @@ For more information, please refer to <https://unlicense.org>
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('drag-over');
-            if (e.dataTransfer.files.length > 0) {
-                fileInput.files = e.dataTransfer.files;
+            const droppedFiles = e.dataTransfer.files;
+            if (droppedFiles.length === 1) {
+                fileInput.files = droppedFiles;
                 handleFileSelection();
+            } else if (droppedFiles.length > 1) {
+                const warningMessageEl = document.getElementById('warningMessage');
+                if (warningMessageEl) {
+                    warningMessageEl.textContent = 'Please drop only one file. Processing of multiple files is not supported.';
+                    warningMessageEl.style.display = 'flex';
+                }
             }
         });
 
         fileInput.addEventListener('change', handleFileSelection);
 
         function handleFileSelection() {
-            const file = fileInput.files[0];
+            const files = fileInput.files;
+            const warningMessageEl = document.getElementById('warningMessage');
+
+            if (files.length > 1) {
+                if (warningMessageEl) {
+                    warningMessageEl.textContent = 'Please select only one file. Processing of multiple files is not supported.';
+                    warningMessageEl.style.display = 'flex';
+                }
+                // Clear the selection so the user can try again with a single file
+                fileInput.value = '';
+                return;
+            }
+
+            const file = files[0];
             if (file) {
                 // Update Meta UI
                 fileMetaBar.style.display = 'flex';
@@ -631,12 +648,12 @@ For more information, please refer to <https://unlicense.org>
                 const originalName = file.name;
                 const safeName = sanitizeFilename(originalName);
                 if (safeName !== originalName) {
-                    showWarning(`Filename sanitized to: "${safeName}"`);
+                    showWarning(`Filename sanitized from "${originalName}" to "${safeName}". Output file will be named "${safeName}".`);
                 }
 
                 // 1. Standard Base64
-                // Await a small delay to allow UI to render "Generating..." before heavy work freezes thread
-                await new Promise(r => setTimeout(r, 20)); 
+                // Yield to next animation frame to allow UI to render "Generating..." before heavy work freezes thread
+                await new Promise(resolve => requestAnimationFrame(() => resolve()));
                 const standardBase64 = await readFileAsBase64(file);
                 
                 // 2. Compressed Base64
@@ -647,12 +664,15 @@ For more information, please refer to <https://unlicense.org>
                         compressedBase64 = await readFileAsBase64(compressedBlob);
                     } catch (e) {
                         console.warn('Compression skipped', e);
+                        showWarning('Compression failed. Falling back to the standard (uncompressed) command.');
                     }
+                } else {
+                    showWarning('Compression not supported in this browser. Using standard command only.');
                 }
 
                 // Generate Commands
-                const standardLinuxCommand = `printf %s '${standardBase64}' | base64 -d > "${safeName}"`;
-                const powershellCommand = `[System.IO.File]::WriteAllBytes("$PWD/${safeName}", [System.Convert]::FromBase64String('${standardBase64}'))`;
+                const standardLinuxCommand = `printf '%s' '${standardBase64}' | base64 -d > "${safeName}"`;
+                const powershellCommand = `[System.IO.File]::WriteAllBytes("${safeName}", [System.Convert]::FromBase64String('${standardBase64}'))`;
                 
                 // Render Standard
                 document.getElementById('linuxStandardCommand').textContent = standardLinuxCommand;
@@ -663,7 +683,7 @@ For more information, please refer to <https://unlicense.org>
                 const compBadge = document.getElementById('compSizeBadge');
                 
                 if (compressedBase64) {
-                    const compressedLinuxCommand = `printf %s '${compressedBase64}' | base64 -d | gzip -d > "${safeName}"`;
+                    const compressedLinuxCommand = `printf '%s' '${compressedBase64}' | base64 -d | gzip -d > "${safeName}"`;
                     compCmdContainer.textContent = compressedLinuxCommand;
                     
                     const standardLen = standardLinuxCommand.length;
@@ -674,7 +694,9 @@ For more information, please refer to <https://unlicense.org>
                         compBadge.textContent = `${percentDiff}% Smaller`;
                         compBadge.classList.add('green');
                     } else {
-                        compBadge.textContent = `No Savings`;
+                        // Show that compression made it larger
+                        const increase = Math.abs(percentDiff);
+                        compBadge.textContent = `${increase}% Larger`;
                         compBadge.classList.remove('green');
                     }
                 } else {
@@ -694,14 +716,43 @@ For more information, please refer to <https://unlicense.org>
             }
         }
         
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            const chunkSize = 0x8000; // 32KB chunks to avoid argument limits
+            let binary = '';
+
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                const chunk = bytes.subarray(i, i + chunkSize);
+                binary += String.fromCharCode.apply(null, chunk);
+            }
+
+            return btoa(binary);
+        }
+
         function readFileAsBase64(blob) {
+            // Guard against very large files that may exhaust memory in the browser
+            const MAX_SAFE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+            if (blob.size > MAX_SAFE_SIZE_BYTES) {
+                return Promise.reject(new Error('File is too large to process in the browser. Please use a file smaller than 50 MB.'));
+            }
+
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
+
                 reader.onload = () => {
-                    resolve(reader.result.split(',')[1]);
+                    try {
+                        const base64 = arrayBufferToBase64(reader.result);
+                        resolve(base64);
+                    } catch (e) {
+                        reject(e instanceof Error ? e : new Error('Failed to convert file to base64.'));
+                    }
                 };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
+
+                reader.onerror = () => {
+                    reject(reader.error || new Error('Failed to read file.'));
+                };
+
+                reader.readAsArrayBuffer(blob);
             });
         }
 
@@ -712,7 +763,9 @@ For more information, please refer to <https://unlicense.org>
         }
 
         function sanitizeFilename(name) {
-            return name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            // Replace control characters and shell-dangerous punctuation with underscores,
+            // while preserving spaces, parentheses, hyphens, dots, underscores, and Unicode characters.
+            return name.replace(/[\x00-\x1F\x7F`"'$\\<>|&;*?#!]/g, '_');
         }
         
         function formatSize(bytes) {
