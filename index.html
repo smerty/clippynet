@@ -622,11 +622,21 @@ For more information, please refer to <https://unlicense.org>
                 document.getElementById('errorMessage').style.display = 'none';
                 document.getElementById('warningMessage').style.display = 'none';
                 
-                // Reset collapse states
+                // Reset collapse states - expand compressed command by default as it's most useful
                 document.querySelectorAll('.code-wrapper').forEach(el => el.classList.add('collapsed'));
+                // Expand the compressed command by default
+                const compressedWrapper = document.getElementById('linuxCompressedWrapper');
+                if (compressedWrapper) {
+                    compressedWrapper.classList.remove('collapsed');
+                }
                 document.querySelectorAll('.action-btn').forEach(btn => { 
                     if(btn.textContent === 'Collapse') btn.textContent = 'Expand'; 
                 });
+                // Update the compressed command expand button
+                const compressedExpandBtn = compressedWrapper?.closest('.terminal-window')?.querySelector('.action-btn:not(.copy-btn)');
+                if (compressedExpandBtn) {
+                    compressedExpandBtn.textContent = 'Collapse';
+                }
 
                 // Trigger Processing automatically
                 processFile(file);
