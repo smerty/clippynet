@@ -689,7 +689,7 @@ For more information, please refer to <https://unlicense.org>
                 }
 
                 // Generate Commands
-                const standardLinuxCommand = `printf '%s' '${standardBase64}' | base64 -d > "${safeName}"`;
+                const standardLinuxCommand = `printf '${standardBase64}' | base64 -d > "${safeName}"`;
                 const powershellCommand = `[System.IO.File]::WriteAllBytes("${safeName}", [System.Convert]::FromBase64String('${standardBase64}'))`;
                 
                 // Render Standard
@@ -701,7 +701,7 @@ For more information, please refer to <https://unlicense.org>
                 const compBadge = document.getElementById('compSizeBadge');
                 
                 if (compressedBase64) {
-                    const compressedLinuxCommand = `printf '%s' '${compressedBase64}' | base64 -d | gzip -d > "${safeName}"`;
+                    const compressedLinuxCommand = `printf '${compressedBase64}' | base64 -d | gzip -d > "${safeName}"`;
                     compCmdContainer.textContent = compressedLinuxCommand;
                     
                     const standardLen = standardLinuxCommand.length;
