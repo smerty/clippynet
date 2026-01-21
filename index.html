@@ -438,7 +438,7 @@ For more information, please refer to <https://unlicense.org>
         <!-- Input Panel -->
         <div class="panel">
             <div class="upload-area">
-                <div id="dropZone" class="drop-zone" role="button" tabindex="0" onkeydown="if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') { event.preventDefault(); document.getElementById('fileInput').click(); }">
+                <div id="dropZone" class="drop-zone" role="button" tabindex="0">
                     <div class="drop-icon">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -492,7 +492,7 @@ For more information, please refer to <https://unlicense.org>
                             <span id="compSizeBadge" class="stat-badge"></span>
                         </div>
                         <div class="terminal-actions">
-                            <button class="action-btn" onclick="toggleExpand('linuxCompressedWrapper', this)">Expand</button>
+                            <button id="compressedExpandBtn" class="action-btn" onclick="toggleExpand('linuxCompressedWrapper', this)">Expand</button>
                             <button class="action-btn copy-btn" onclick="copyCommand('linuxCompressedCommand', this)">Copy</button>
                         </div>
                     </div>
@@ -575,6 +575,14 @@ For more information, please refer to <https://unlicense.org>
         const loader = document.getElementById('loader');
         const statusText = document.getElementById('statusText');
 
+        // Keyboard accessibility for drop zone
+        dropZone.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                e.preventDefault();
+                fileInput.click();
+            }
+        });
+
         // Drag Visuals
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
         dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
@@ -633,7 +641,7 @@ For more information, please refer to <https://unlicense.org>
                     if(btn.textContent === 'Collapse') btn.textContent = 'Expand'; 
                 });
                 // Update the compressed command expand button
-                const compressedExpandBtn = compressedWrapper?.closest('.terminal-window')?.querySelector('.action-btn:not(.copy-btn)');
+                const compressedExpandBtn = document.getElementById('compressedExpandBtn');
                 if (compressedExpandBtn) {
                     compressedExpandBtn.textContent = 'Collapse';
                 }
@@ -775,6 +783,15 @@ For more information, please refer to <https://unlicense.org>
         function sanitizeFilename(name) {
             // Replace control characters and shell-dangerous punctuation with underscores,
             // while preserving spaces, parentheses, hyphens, dots, underscores, and Unicode characters.
+            // Pattern explanation:
+            // - \x00-\x1F: Control characters (0-31)
+            // - \x7F: DEL character
+            // - `: Backticks (command substitution)
+            // - ": Double quotes (shell variable expansion)
+            // - ': Single quotes (can break shell syntax)
+            // - $: Dollar sign (shell variable expansion)
+            // - \\: Backslash (escape character)
+            // - <>|&;*?#!: Shell metacharacters (redirection, pipes, background, wildcards, etc.)
             return name.replace(/[\x00-\x1F\x7F`"'$\\<>|&;*?#!]/g, '_');
         }
         
